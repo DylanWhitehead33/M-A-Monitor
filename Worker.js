@@ -1,20 +1,51 @@
 const SOURCES = [
-  { name: 'Rock Products',             url: 'https://www.rockproducts.com/latest-news/' },
-  { name: 'Concrete Products',         url: 'https://www.concreteproducts.com/news/' },
-  { name: 'Pit & Quarry',              url: 'https://www.pitandquarry.com/news/' },
-  { name: 'Martin Marietta',           url: 'https://www.martinmarietta.com/investors/press-releases/' },
-  { name: 'Arcosa',                    url: 'https://investors.arcosa.com/press-releases' },
-  { name: 'Amrize (AMRZ)',             url: 'https://www.amrize.com/news/' },
-  { name: 'Construction Partners',     url: 'https://ir.constructionpartners.net/press-releases' },
-  { name: 'Granite Construction',      url: 'https://www.graniteconstruction.com/newsroom' },
-  { name: 'CRH',                       url: 'https://www.crh.com/media/press-releases/' },
-  { name: 'Knife River',               url: 'https://www.kniferivercorp.com/news' },
-  { name: 'Eagle Materials',           url: 'https://www.eaglematerials.com/press-releases' },
-  { name: 'Heidelberg Materials',      url: 'https://www.heidelbergmaterials.com/en/news' },
-  { name: 'Cemex',                     url: 'https://www.cemex.com/media/newsroom' },
-  { name: 'GCC',                       url: 'https://ir.gcc.com/news-events/news-releases' },
-  { name: 'PR Newswire Construction',  url: 'https://www.prnewswire.com/news-releases/construction-materials/' },
+  { name: 'Rock Products',            url: 'https://www.rockproducts.com/latest-news/' },
+  { name: 'Concrete Products',        url: 'https://www.concreteproducts.com/news/' },
+  { name: 'Pit & Quarry',             url: 'https://www.pitandquarry.com/news/' },
+  { name: 'Martin Marietta',          url: 'https://www.martinmarietta.com/investors/press-releases/' },
+  { name: 'Arcosa',                   url: 'https://investors.arcosa.com/press-releases' },
+  { name: 'Amrize (AMRZ)',            url: 'https://www.amrize.com/news/' },
+  { name: 'Construction Partners',    url: 'https://ir.constructionpartners.net/press-releases' },
+  { name: 'Granite Construction',     url: 'https://www.graniteconstruction.com/newsroom' },
+  { name: 'CRH',                      url: 'https://www.crh.com/media/press-releases/' },
+  { name: 'Knife River',              url: 'https://www.kniferivercorp.com/news' },
+  { name: 'Eagle Materials',          url: 'https://www.eaglematerials.com/press-releases' },
+  { name: 'Heidelberg Materials',     url: 'https://www.heidelbergmaterials.com/en/news' },
+  { name: 'Cemex',                    url: 'https://www.cemex.com/media/newsroom' },
+  { name: 'GCC',                      url: 'https://ir.gcc.com/news-events/news-releases' },
+  { name: 'PR Newswire Construction', url: 'https://www.prnewswire.com/news-releases/construction-materials/' },
 ];
+
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0',
+];
+
+function randomUA() {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+function browserHeaders(url) {
+  const origin = new URL(url).origin;
+  return {
+    'User-Agent':                randomUA(),
+    'Accept':                    'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language':           'en-US,en;q=0.9',
+    'Accept-Encoding':           'gzip, deflate, br',
+    'Referer':                   origin + '/',
+    'DNT':                       '1',
+    'Connection':                'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest':            'document',
+    'Sec-Fetch-Mode':            'navigate',
+    'Sec-Fetch-Site':            'same-origin',
+    'Sec-Fetch-User':            '?1',
+    'Cache-Control':             'max-age=0',
+  };
+}
 
 const MA_KEYWORDS = [
   'acqui', 'merger', 'merging', 'merged', 'divest', 'divestiture',
@@ -73,7 +104,7 @@ function detectSector(text) {
   const t = lc(text);
   const found = SECTOR_MAP.filter(s => s.keys.some(k => t.includes(k))).map(s => s.label);
   if (found.length === 0) return null;
-  if (found.length > 1)   return 'Multiple';
+  if (found.length > 1) return 'Multiple';
   return found[0];
 }
 
@@ -106,8 +137,7 @@ function stripTags(html) {
 function parseArticles(html, baseUrl, sourceName) {
   const results = [];
   const seen = new Set();
-  const anchorRe = /<a[^>]+href=["']([^"'#?][^"']*)["'][^>]*>([\s\S]{0,200}?)<\/a>/gi;
-  let m;
+
   const blockRe = /<(?:p|h[123456]|li)[^>]*>([\s\S]{20,800}?)<\/(?:p|h[123456]|li)>/gi;
   const blocks = [];
   let bm;
@@ -115,19 +145,26 @@ function parseArticles(html, baseUrl, sourceName) {
     const text = stripTags(bm[1]);
     if (text.length > 20) blocks.push(text);
   }
+
+  const anchorRe = /<a[^>]+href=["']([^"'#?][^"']*)["'][^>]*>([\s\S]{0,200}?)<\/a>/gi;
+  let m;
   while ((m = anchorRe.exec(html)) !== null) {
     let href = m[1].trim();
     const anchorText = stripTags(m[2]).trim();
+
     if (!href || href.startsWith('javascript') || href.startsWith('mailto') || href.length < 5) continue;
     if (!anchorText || anchorText.length < 10) continue;
+
     if (href.startsWith('//')) href = 'https:' + href;
     else if (href.startsWith('/')) {
       try { href = new URL(href, baseUrl).toString(); } catch(e) { continue; }
     } else if (!href.startsWith('http')) continue;
+
     const normHref = href.split('?')[0].replace(/\/$/, '');
     if (seen.has(normHref)) continue;
     if (/\/(tag|category|author|page|search|feed|login|contact|about)\//i.test(href)) continue;
     if (/\.(jpg|jpeg|png|gif|svg|pdf|zip|css|js)$/i.test(href)) continue;
+
     const titleLower = lc(anchorText);
     let bestContext = '';
     for (const block of blocks) {
@@ -135,39 +172,64 @@ function parseArticles(html, baseUrl, sourceName) {
       const matchCount = words.filter(w => lc(block).includes(w)).length;
       if (matchCount >= 2 && block.length > bestContext.length) bestContext = block;
     }
+
     const combined = anchorText + ' ' + bestContext;
     if (!containsMA(combined)) continue;
+
     seen.add(normHref);
     const summary = bestContext.length > 30 ? bestContext : anchorText;
     const trimmedSummary = summary.length > 320 ? summary.slice(0, 317) + '…' : summary;
+
     results.push({
-      title: anchorText, summary: trimmedSummary, url: href,
-      pubDate: new Date().toISOString(), source: sourceName,
-      keywords: matchedKeywords(combined), sector: detectSector(combined),
-      dealType: detectType(combined), dealValue: extractValue(combined),
+      title:     anchorText,
+      summary:   trimmedSummary,
+      url:       href,
+      pubDate:   new Date().toISOString(),
+      source:    sourceName,
+      keywords:  matchedKeywords(combined),
+      sector:    detectSector(combined),
+      dealType:  detectType(combined),
+      dealValue: extractValue(combined),
     });
+
     if (results.length >= 15) break;
   }
   return results;
 }
 
 async function fetchSource(source) {
-  try {
-    const resp = await fetch(source.url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; MA-Monitor/1.0)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-      cf: { cacheTtl: 3600, cacheEverything: true },
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!resp.ok) return { source: source.name, articles: [], error: `HTTP ${resp.status}` };
-    const html = await resp.text();
-    const articles = parseArticles(html, source.url, source.name);
-    return { source: source.name, articles, error: null };
-  } catch (e) {
-    return { source: source.name, articles: [], error: e.message };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const resp = await fetch(source.url, {
+        method: 'GET',
+        headers: browserHeaders(source.url),
+        redirect: 'follow',
+        cf: { cacheTtl: 1800, cacheEverything: false, scrapeShield: false },
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (resp.status === 403 || resp.status === 429) {
+        if (attempt < 2) {
+          await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+          continue;
+        }
+        return { source: source.name, articles: [], error: `HTTP ${resp.status} after ${attempt + 1} attempts` };
+      }
+
+      if (!resp.ok) {
+        return { source: source.name, articles: [], error: `HTTP ${resp.status}` };
+      }
+
+      const html = await resp.text();
+      const articles = parseArticles(html, source.url, source.name);
+      return { source: source.name, articles, error: null };
+
+    } catch (e) {
+      if (attempt === 2) return { source: source.name, articles: [], error: e.message };
+      await new Promise(r => setTimeout(r, 300));
+    }
   }
+  return { source: source.name, articles: [], error: 'All attempts failed' };
 }
 
 export default {
@@ -178,27 +240,35 @@ export default {
       'Access-Control-Allow-Headers': 'Content-Type',
       'Content-Type': 'application/json',
     };
+
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
+
     const url = new URL(request.url);
+
     if (url.pathname === '/ping') {
-      return new Response(JSON.stringify({ ok: true, sources: SOURCES.length }), { headers: corsHeaders });
+      return new Response(JSON.stringify({ ok: true, sources: SOURCES.length, ts: new Date().toISOString() }), { headers: corsHeaders });
     }
+
     const results = await Promise.all(SOURCES.map(fetchSource));
+
     const allArticles = [];
     const sourceStatuses = {};
+
     for (const r of results) {
-      sourceStatuses[r.source] = r.error ? { ok: false, error: r.error } : { ok: true, count: r.articles.length };
+      sourceStatuses[r.source] = r.error
+        ? { ok: false, error: r.error }
+        : { ok: true, count: r.articles.length };
       allArticles.push(...r.articles);
     }
-    const payload = {
-      fetchedAt: new Date().toISOString(),
+
+    return new Response(JSON.stringify({
+      fetchedAt:  new Date().toISOString(),
       totalFound: allArticles.length,
-      sources: sourceStatuses,
-      articles: allArticles,
-    };
-    return new Response(JSON.stringify(payload), {
+      sources:    sourceStatuses,
+      articles:   allArticles,
+    }), {
       headers: { ...corsHeaders, 'Cache-Control': 'no-store' },
     });
   }
